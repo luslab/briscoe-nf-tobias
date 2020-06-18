@@ -20,8 +20,7 @@ Params
 Module inclusions
 -------------------------------------------------------------------------------------------------------------------------------*/
 
-//include luslabHeader from './modules/util/util.nf'
-//include metadata from './modules/metadata/metadata.nf'
+include tobias from './modules/tobias/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
@@ -85,6 +84,7 @@ Main workflow
 
 // Run workflow
 workflow {
+    tobias()
 }
 
 workflow.onComplete {

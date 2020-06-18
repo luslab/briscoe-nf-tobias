@@ -19,23 +19,24 @@ params.internal_outdir = params.outdir
 params.internal_process_name = 'tobias'
 
 // dedup reusable component
-process umi_tools {
+process tobias {
     publishDir "${params.internal_outdir}/${params.internal_process_name}",
         mode: "copy", overwrite: true
 
-    input:
-      tuple val(sample_id), path(bai), path(bam)
+    container 'luslab/nf-modules-tobias:latest'
+    //input:
+    //  tuple val(sample_id), path(bai), path(bam)
        
-    output:
-      tuple val(sample_id), path(bam), emit: dedupBam
+   // output:
+   //   tuple val(sample_id), path(bam), emit: dedupBam
 
     shell:
     """
-    TOBIAS ATACorrect --bam $i --genome $GENOME --peaks $BED --blacklist $BLACKLIST --outdir ATACorrect_mergedReps --cores 16 " >> RunATACorrect_$cleanName.sh;
+    TOBIAS --version
     """
 }
 
-	if (verbose){
+	/*if (verbose){
 			println ("[MODULE] BOWTIE2 ARGS: " + bowtie2_args)
 		}
 
@@ -53,5 +54,5 @@ process umi_tools {
 		}
 		else {
 			readString = "-U " + reads
-		}
+		}*/
 		
