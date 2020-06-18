@@ -39,7 +39,7 @@ Init
 //log.info luslabHeader()
 
 // Show work summary
-def summary = [:]
+//def summary = [:]
 /*summary['Classpath'] = params.classpath
 summary['Output directory'] = params.outdir
 summary['Trace directory'] = params.tracedir
