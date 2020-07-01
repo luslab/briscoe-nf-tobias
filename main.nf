@@ -21,6 +21,7 @@ Module inclusions
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 include tobias from './modules/tobias/main.nf'
+include { build_debug_param_summary; luslab_header; check_params } from './luslab-nf-modules/tools/luslab_util/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
@@ -35,7 +36,11 @@ Init
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 // Show banner
-//log.info luslabHeader()
+log.info luslab_header()
+
+if(params.verbose){
+    log.info build_debug_param_summary()
+}
 
 // Show work summary
 //def summary = [:]
@@ -55,28 +60,6 @@ summary['Metadata path'] = params.input
 log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
 log.info "-\033[2m---------------------------------------------------------------\033[0m-"*/
 
-// Check params
-/*if (!params.input) {
-    exit 1, "No metadata input provided"
-}
-if (!params.bowtie_index) {
-    exit 1, "No bowtie index provided"
-}
-if (!params.star_index) {
-    exit 1, "No star index provided"
-}
-if (!params.genome) {
-    exit 1, "No genome provided"
-}
-if (!params.genome_fai) {
-    exit 1, "No genome index provided"
-}
-if (!params.segmentation) {
-    exit 1, "No segmentation provided"
-}
-if (!params.peka_regions) {
-    exit 1, "No regions provided"
-}*/
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Main workflow
@@ -84,11 +67,11 @@ Main workflow
 
 // Run workflow
 workflow {
-    tobias()
+//    tobias()
 }
 
-workflow.onComplete {
-    log.info "\nPipeline finished executing\n"
-}
+// workflow.onComplete {
+//     log.info "\nPipeline finished executing\n"
+// }
 
 /*------------------------------------------------------------------------------------*/
