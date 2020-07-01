@@ -22,6 +22,7 @@ Module inclusions
 
 include tobias from './modules/tobias/main.nf'
 include { build_debug_param_summary; luslab_header; check_params } from './luslab-nf-modules/tools/luslab_util/main.nf'
+include simple_metadata from './luslab-nf-modules/tools/metadata/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
@@ -60,14 +61,27 @@ summary['Metadata path'] = params.input
 log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
 log.info "-\033[2m---------------------------------------------------------------\033[0m-"*/
 
+check_params(['genome','regions','blacklist','design'])
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Main workflow
 -------------------------------------------------------------------------------------------------------------------------------*/
 
+ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
+ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
+ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
+
 // Run workflow
 workflow {
-//    tobias()
+    simple_metadata(params.design)
+
+    ch_tobiasinput = simple_metadata.out.metadata
+        .map{row -> [row[0], file(row[1][0])]}
+        .combine(ch_genome)
+        .combine(ch_regions)
+        .combine(ch_blacklist)
+
+    tobias( ch_tobiasinput )
 }
 
 // workflow.onComplete {

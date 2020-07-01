@@ -24,17 +24,30 @@ process tobias {
         mode: "copy", overwrite: true
 
     container 'luslab/nf-modules-tobias:latest'
-    //input:
-    //  tuple val(sample_id), path(bai), path(bam)
-       
-   // output:
-   //   tuple val(sample_id), path(bam), emit: dedupBam
+    
+	input:
+		tuple val(sample_id), path(bam), path(genome), path(bed), path(blacklist)
 
-    shell:
+	output:
+		path "*.log", emit: report
+		tuple val(sample_id), path("*corrected.bw"). emit: corrected
+
+    script:
     """
-    TOBIAS --version
+    TOBIAS ATACorrect --bam $bam --genome $genome --peaks $bed --blacklist $blacklist --outdir . --cores ${task.cpus} > ${sample_id}_atacorrect.log
     """
 }
+
+
+// 
+//TOBIAS ATACorrect --bam $i --genome $GENOME --peaks $BED --blacklist $BLACKLIST --outdir ATACorrect_mergedReps --cores 16 
+
+// D3_0_NMP.mRp.clN.sorted_AtacBias.pickle
+// -rw-r--r-- 1 delasj domain_users  34K Jun 11 23:42 D3_0_NMP.mRp.clN.sorted_atacorrect.pdf
+// -rw-r--r-- 1 delasj domain_users 1.4G Jun 11 23:40 D3_0_NMP.mRp.clN.sorted_bias.bw
+// -rw-r--r-- 1 delasj domain_users 806M Jun 11 23:42 D3_0_NMP.mRp.clN.sorted_corrected.bw
+// -rw-r--r-- 1 delasj domain_users 771M Jun 11 23:41 D3_0_NMP.mRp.clN.sorted_expected.bw
+// -rw-r--r-- 1 delasj domain_users 167M Jun 11 23:38 D3_0_NMP.mRp.clN.sorted_uncorrected.bw
 
 	/*if (verbose){
 			println ("[MODULE] BOWTIE2 ARGS: " + bowtie2_args)
