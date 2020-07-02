@@ -19,7 +19,7 @@ params.internal_outdir = params.outdir
 params.internal_process_name = 'tobias'
 
 // dedup reusable component
-process tobias {
+process tobiasatacorrect {
     publishDir "${params.internal_outdir}/${params.internal_process_name}",
         mode: "copy", overwrite: true
 
@@ -30,7 +30,7 @@ process tobias {
 
 	output:
 		path "*.log", emit: report
-		tuple val(sample_id), path("*corrected.bw"). emit: corrected
+		tuple val(sample_id), path("*_corrected.bw"), emit: corrected
 
     script:
     """
@@ -38,8 +38,29 @@ process tobias {
     """
 }
 
+process tobiasfootprint {
+    publishDir "${params.internal_outdir}/${params.internal_process_name}",
+        mode: "copy", overwrite: true
 
-// 
+    container 'luslab/nf-modules-tobias:latest'
+
+	input: tuple val(sample_id), path(corrected), path(bed)
+
+	output:
+		path "*.log", emit: report // can these have the same name as above and also *.log only?
+		tuple val(sample_id), path("*_footprints.bw"), emit: footprints
+
+	script:
+	"""
+	TOBIAS FootprintScores --signal $corrected --regions $bed --output ${sample_id}_footprints.bw --cores ${task.cpus} > ${sample_id}_footprint.log
+	"""	
+}
+
+
+//
+// TOBIAS FootprintScores --signal $i \
+//	--regions $BED  \
+//	--output ATACFootprint_mergedReps/${cleanName}_footprints.bw --cores 16
 //TOBIAS ATACorrect --bam $i --genome $GENOME --peaks $BED --blacklist $BLACKLIST --outdir ATACorrect_mergedReps --cores 16 
 
 // D3_0_NMP.mRp.clN.sorted_AtacBias.pickle

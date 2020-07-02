@@ -20,7 +20,7 @@ Params
 Module inclusions
 -------------------------------------------------------------------------------------------------------------------------------*/
 
-include tobias from './modules/tobias/main.nf'
+include { tobiasatacorrect; tobiasfootprint } from './modules/tobias/main.nf'
 include { build_debug_param_summary; luslab_header; check_params } from './luslab-nf-modules/tools/luslab_util/main.nf'
 include simple_metadata from './luslab-nf-modules/tools/metadata/main.nf'
 
@@ -75,13 +75,15 @@ ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
 workflow {
     simple_metadata(params.design)
 
-    ch_tobiasinput = simple_metadata.out.metadata
+    ch_atacorrectinput = simple_metadata.out.metadata
         .map{row -> [row[0], file(row[1][0])]}
         .combine(ch_genome)
         .combine(ch_regions)
         .combine(ch_blacklist)
 
-    tobias( ch_tobiasinput )
+    tobiasatacorrect( ch_atacorrectinput )
+
+    tobiasfootprint( tobiasatacorrect.out.corrected.combine(ch_regions) )
 }
 
 // workflow.onComplete {
