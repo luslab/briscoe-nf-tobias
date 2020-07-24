@@ -14,13 +14,9 @@ Module decription
 // Specify DSL2
 nextflow.preview.dsl = 2
 
-// Local default params
-params.internal_outdir = params.outdir
-params.internal_process_name = 'tobias'
-
 // dedup reusable component
-process tobiasatacorrect {
-    publishDir "${params.internal_outdir}/${params.internal_process_name}",
+process tobias_atacorrect {
+    publishDir "${params.outdir}/tobias_atacorrect",
         mode: "copy", overwrite: true
 
     container 'luslab/nf-modules-tobias:latest'
@@ -38,8 +34,8 @@ process tobiasatacorrect {
     """
 }
 
-process tobiasfootprint {
-    publishDir "${params.internal_outdir}/${params.internal_process_name}",
+process tobias_footprint {
+    publishDir "${params.outdir}/tobias_footprint",
         mode: "copy", overwrite: true
 
     container 'luslab/nf-modules-tobias:latest'
@@ -47,8 +43,10 @@ process tobiasfootprint {
 	input: tuple val(sample_id), path(corrected), path(bed)
 
 	output:
-		path "*.log", emit: report // can these have the same name as above and also *.log only?
+		path "*.log", emit: report 
 		tuple val(sample_id), path("*_footprints.bw"), emit: footprints
+		val sample_id, emit: sampleIds
+		path "*_footprints.bw", emit: footprintsDetect
 
 	script:
 	"""
@@ -56,19 +54,59 @@ process tobiasfootprint {
 	"""	
 }
 
+process tobias_bindetect {
+	publishDir "${params.outdir}/tobias_bindetect",
+        mode: "copy", overwrite: true
 
-//
-// TOBIAS FootprintScores --signal $i \
-//	--regions $BED  \
-//	--output ATACFootprint_mergedReps/${cleanName}_footprints.bw --cores 16
-//TOBIAS ATACorrect --bam $i --genome $GENOME --peaks $BED --blacklist $BLACKLIST --outdir ATACorrect_mergedReps --cores 16 
+    container 'luslab/nf-modules-tobias:latest'
 
-// D3_0_NMP.mRp.clN.sorted_AtacBias.pickle
-// -rw-r--r-- 1 delasj domain_users  34K Jun 11 23:42 D3_0_NMP.mRp.clN.sorted_atacorrect.pdf
-// -rw-r--r-- 1 delasj domain_users 1.4G Jun 11 23:40 D3_0_NMP.mRp.clN.sorted_bias.bw
-// -rw-r--r-- 1 delasj domain_users 806M Jun 11 23:42 D3_0_NMP.mRp.clN.sorted_corrected.bw
-// -rw-r--r-- 1 delasj domain_users 771M Jun 11 23:41 D3_0_NMP.mRp.clN.sorted_expected.bw
-// -rw-r--r-- 1 delasj domain_users 167M Jun 11 23:38 D3_0_NMP.mRp.clN.sorted_uncorrected.bw
+	input: tuple val(sample_ids), path(signals), path(motifs), path(genome), path(peaks)
+
+	output:
+		path "*.log", emit: report
+		path "bindetect_*"
+		path "*/*_overview.txt"
+		//path "*/beds/**"
+		path "*/plots/**"
+		path "*/beds/*_all.bed", emit: motifBeds
+		path "*/beds/*_bound.bed", emit: boundBeds
+		path "*/beds/*_unbound.bed", emit: unboundBeds
+		path "motiflist.txt", emit: motifList
+		//tuple val(sample_ids), path(signals), path(motifs), path(genome), path(peaks), emit: bindetect
+//${peaks.collect{it.toString()}.sort().join(',').replaceAll("_peaks.${PEAK_TYPE}","")}
+	script:
+	"""
+	cat $motifs | awk 'sub(/^>/, "")' | awk '{printf \$2"_"\$1"\\n"}' | sed 's/:://g' | sort > motiflist.txt 
+	TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log
+	"""	
+}
+
+process tobias_plotaggregate {
+	publishDir "${params.outdir}/tobias_bindetect",
+        mode: "copy", overwrite: true
+
+    container 'luslab/nf-modules-tobias:latest'
+
+	input: tuple val(motifname), path(motifBeds), path(correctedInsertions)
+
+	output:
+		path "$motifname/*.pdf", emit: plotaggregated
+
+	script:
+	"""
+	TOBIAS PlotAggregate --TFBS $motifBeds --signals ${correctedInsertions.join(' ')} --output $motifname/${motifname}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
+	"""	
+}
+
+//TOBIAS PlotAggregate --TFBS $motifBeds  --signals $correctedInsertions --output  --share_y both --plot_boundaries --signal-on-x
+
+// TOBIAS PlotAggregate --TFBS BINDetect_output_D6_0_1/OLIG2_MA0678.1/beds/OLIG2_MA0678.1_all.bed \
+// 	--signals ATACorrect_mergedReps/D6_0_1.mRp.clN.sorted_corrected.bw \
+// 		ATACorrect_mergedReps/D6_10_2.mRp.clN.sorted_corrected.bw \
+// 		ATACorrect_mergedReps/D6_100_M.mRp.clN.sorted_corrected.bw \
+// 		ATACorrect_mergedReps/D6_500_3.mRp.clN.sorted_corrected.bw \
+// 	--output OLIG2_footprint_comparison_D6.pdf \
+// 	--share_y both --plot_boundaries --signal-on-x
 
 	/*if (verbose){
 			println ("[MODULE] BOWTIE2 ARGS: " + bowtie2_args)
