@@ -76,11 +76,10 @@ process tobias_bindetect {
 //${peaks.collect{it.toString()}.sort().join(',').replaceAll("_peaks.${PEAK_TYPE}","")}
 	script:
 	"""
-	cat $motifs | awk 'sub(/^>/, "")' | awk '{printf \$2"_"\$1"\\n"}' | sed 's/:://g' | sort > motiflist.txt 
+	awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt 
 	TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log
 	"""	
 }
-
 process tobias_plotaggregate {
 	publishDir "${params.outdir}/tobias_bindetect",
         mode: "copy", overwrite: true
