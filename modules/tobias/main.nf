@@ -93,6 +93,7 @@ process tobias_plotaggregate {
 
 	script:
 	"""
+	mkdir $motifName
 	TOBIAS PlotAggregate --TFBS $motifBeds --signals ${correctedInsertions.join(' ')} --output $motifname/${motifname}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
 	"""	
 }
