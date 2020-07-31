@@ -27,6 +27,8 @@ process tobias_atacorrect {
 	output:
 		path "*.log", emit: report
 		tuple val(sample_id), path("*_corrected.bw"), emit: corrected
+		tuple val(sample_id), path("*_expected.bw"), emit: expected
+		tuple val(sample_id), path("*_uncorrected.bw"), emit: uncorrected
 
     script:
     """
@@ -66,14 +68,13 @@ process tobias_bindetect {
 		path "*.log", emit: report
 		path "bindetect_*"
 		path "*/*_overview.txt"
-		//path "*/beds/**"
+		path "*/*.png"
 		path "*/plots/**"
 		path "*/beds/*_all.bed", emit: motifBeds
 		path "*/beds/*_bound.bed", emit: boundBeds
 		path "*/beds/*_unbound.bed", emit: unboundBeds
 		path "motiflist.txt", emit: motifList
-		//tuple val(sample_ids), path(signals), path(motifs), path(genome), path(peaks), emit: bindetect
-//${peaks.collect{it.toString()}.sort().join(',').replaceAll("_peaks.${PEAK_TYPE}","")}
+
 	script:
 	"""
 	awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt 
@@ -98,15 +99,6 @@ process tobias_plotaggregate {
 	"""	
 }
 
-//TOBIAS PlotAggregate --TFBS $motifBeds  --signals $correctedInsertions --output  --share_y both --plot_boundaries --signal-on-x
-
-// TOBIAS PlotAggregate --TFBS BINDetect_output_D6_0_1/OLIG2_MA0678.1/beds/OLIG2_MA0678.1_all.bed \
-// 	--signals ATACorrect_mergedReps/D6_0_1.mRp.clN.sorted_corrected.bw \
-// 		ATACorrect_mergedReps/D6_10_2.mRp.clN.sorted_corrected.bw \
-// 		ATACorrect_mergedReps/D6_100_M.mRp.clN.sorted_corrected.bw \
-// 		ATACorrect_mergedReps/D6_500_3.mRp.clN.sorted_corrected.bw \
-// 	--output OLIG2_footprint_comparison_D6.pdf \
-// 	--share_y both --plot_boundaries --signal-on-x
 
 	/*if (verbose){
 			println ("[MODULE] BOWTIE2 ARGS: " + bowtie2_args)
