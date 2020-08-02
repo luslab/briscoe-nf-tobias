@@ -61,7 +61,7 @@ summary['Metadata path'] = params.input
 log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
 log.info "-\033[2m---------------------------------------------------------------\033[0m-"*/
 
-check_params(['genome','regions','blacklist','design','motifs'])
+check_params(['genome','regions','blacklist','design','motifs','peaks'])
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Main workflow
@@ -71,6 +71,7 @@ ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
 ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
 ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
 ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
+ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
 
 // Run workflow
 workflow {
@@ -86,17 +87,11 @@ workflow {
 
     tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
 
-    // ch_bindtest = tobias_footprint.out.sampleIds.collect()
-    //     .merge(tobias_footprint.out.footprintsDetect.collect())
-    //     .combine(ch_motifs)
-    //     .combine(ch_genome)
-    //     .combine(ch_regions)
-
     ch_bindtest = tobias_footprint.out.footprints.collect{ it[0] }
         .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
         .combine(ch_motifs)
         .combine(ch_genome)
-        .combine(ch_regions)
+        .combine(ch_peaks)
 
     // ch_bindtest.view { "$it" }
 
