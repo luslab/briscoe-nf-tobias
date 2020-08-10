@@ -22,7 +22,7 @@ Module inclusions
 
 include { tobias_atacorrect; tobias_footprint; tobias_bindetect; tobias_plotaggregate } from './modules/tobias/main.nf'
 include { build_debug_param_summary; luslab_header; check_params } from './luslab-nf-modules/tools/luslab_util/main.nf'
-include simple_metadata from './luslab-nf-modules/tools/metadata/main.nf'
+include { simple_metadata } from './luslab-nf-modules/tools/metadata/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
