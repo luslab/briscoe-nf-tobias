@@ -22,7 +22,9 @@ Module inclusions
 
 include { tobias_atacorrect; tobias_footprint; tobias_bindetect; tobias_plotaggregate } from './modules/tobias/main.nf'
 include { build_debug_param_summary; luslab_header; check_params } from './luslab-nf-modules/tools/luslab_util/main.nf'
-include { simple_metadata } from './luslab-nf-modules/tools/metadata/main.nf'
+include { fastq_metadata } from './luslab-nf-modules/tools/metadata/main.nf'
+include { awk } from './luslab-nf-modules/tools/luslab_linux_tools/main.nf'
+
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
@@ -31,6 +33,13 @@ Pipeline params
 // Main data parameters
 //params.input = ''
 //params.bowtie_index = ''
+
+// 'awk' {
+//             args             = ""
+//             outfile_name     = ""
+//             publish_dir      = "awk"
+//             publish_results  = "all"
+//         }
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Init
@@ -75,42 +84,62 @@ ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
 
 // Run workflow
 workflow {
-    simple_metadata(params.design)
+    fastq_metadata(params.design)
 
-    ch_atacorrectinput = simple_metadata.out.metadata
-        .map{row -> [row[0], file(row[1][0])]}
-        .combine(ch_genome)
-        .combine(ch_regions)
-        .combine(ch_blacklist)
+    awk(params.modules['motifsplit_awk'],)
 
-    tobias_atacorrect( ch_atacorrectinput )
 
-    tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
+    // ch_atacorrectinput = simple_metadata.out.metadata
+    //     .map{row -> [row[0], file(row[1][0])]}
+    //     .combine(ch_genome)
+    //     .combine(ch_regions)
+    //     .combine(ch_blacklist)
 
-    ch_bindtest = tobias_footprint.out.footprints.collect{ it[0] }
-        .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
-        .combine(ch_motifs)
-        .combine(ch_genome)
-        .combine(ch_peaks)
+    // tobias_atacorrect( ch_atacorrectinput )
 
-    // ch_bindtest.view { "$it" }
+    // tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
 
-    tobias_bindetect( ch_bindtest )
+    // ch_bindtest = tobias_footprint.out.footprints.collect{ it[0] }
+    //     .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
+    //     .combine(ch_motifs)
+    //     .combine(ch_genome)
+    //     .combine(ch_peaks)
+
+
+
+    // tobias_bindetect( ch_bindtest )
     
-    ch_plotagreggate = tobias_bindetect.out.motifList
-        .splitCsv(header:false)
-        .merge(tobias_bindetect.out.motifBeds.toSortedList().flatten())
-        .combine(tobias_atacorrect.out.corrected.collect{ it[1] }.map{row -> [row]}) 
-    // .subscribe {log.info("$it")}
+    // ch_plotagreggate = tobias_bindetect.out.motifList
+    //     .splitCsv(header:false)
+    //     .merge(tobias_bindetect.out.motifBeds.toSortedList().flatten())
+    //     .combine(tobias_atacorrect.out.corrected.collect{ it[1] }.map{row -> [row]}) 
+   
+
+    // tobias_plotaggregate(ch_plotagreggate)
+
+
+   
+}
+
+
+//     fastq_metadata.out.metadata | view
+
+
+// ch_bindtest.view { "$it" }
+ // .subscribe {log.info("$it")}
 
     // tobias_bindetect.out.motifBeds
     //     .flatten()
     //     .subscribe {log.info("$it")}
 
-    tobias_plotaggregate(ch_plotagreggate)
+  // .subscribe {log.info("$it")}
+
+    // tobias_bindetect.out.motifBeds
+    //     .flatten()
+    //     .subscribe {log.info("$it")}
 
 
-    // ch_plotagreggate = tobias_bindetect.out.motifBeds
+ // ch_plotagreggate = tobias_bindetect.out.motifBeds
     //     .combine(tobias_atacorrect.out.corrected.collect{ it[1] }) 
     // // ch_plotagreggate = tobias_atacorrect.out.corrected.collect{ it[1] }
     // //     .join(tobias_bindetect.out.motifBeds)
@@ -119,8 +148,6 @@ workflow {
     // tobias_plotaggregate( ch_plotagreggate )
     // //tobias_bindetect.out.motifBeds | view
     // //tobias_atacorrect.out.corrected | view
-}
-
 
 // tuple val(sample_ids), path(signals), path(motifs), path(genome), path(peaks)
 
