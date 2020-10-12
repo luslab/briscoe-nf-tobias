@@ -79,25 +79,40 @@ Main workflow
 ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
 ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
 ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
-ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
+//ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
 ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
+
+motifs_format = [
+    [[:], params.motifs]
+]
+
+Channel
+    .from(motifs_format)
+    .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
+    .set {ch_motifs}
 
 // Run workflow
 workflow {
     fastq_metadata(params.design)
 
-    awk(params.modules['motifsplit_awk'],)
+    awk(params.modules['motifsplit_awk'],ch_motifs)
 
+    ch_atacorrectinput = fastq_metadata.out.metadata
+        .map{row -> [row[0], file(row[1][0])]}
+        .combine(ch_genome)
+        .combine(ch_regions)
+        .combine(ch_blacklist)
 
-    // ch_atacorrectinput = simple_metadata.out.metadata
-    //     .map{row -> [row[0], file(row[1][0])]}
-    //     .combine(ch_genome)
-    //     .combine(ch_regions)
-    //     .combine(ch_blacklist)
+    tobias_atacorrect( ch_atacorrectinput )
 
-    // tobias_atacorrect( ch_atacorrectinput )
+    tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
 
-    // tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
+    tobias_footprint.out.footprints | view
+
+    // ch_bind = tobias_footprint.out.footprints.collect{ it[0] }
+    //     .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
+    //     .subscribe {log.info("$it")}
+    
 
     // ch_bindtest = tobias_footprint.out.footprints.collect{ it[0] }
     //     .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
