@@ -77,10 +77,10 @@ log.info "-\033[2m--------------------------------------------------------------
 Main workflow
 -------------------------------------------------------------------------------------------------------------------------------*/
 
-ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
-ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
-ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
-ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
+ch_genome = Channel.value(file(params.genome, checkIfExists: true))
+ch_regions = Channel.value(file(params.regions, checkIfExists: true))
+ch_blacklist = Channel.value(file(params.blacklist, checkIfExists: true))
+ch_peaks = Channel.value(file(params.peaks, checkIfExists: false))
 
 motifs_format = [
       [[:], params.motifs]
