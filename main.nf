@@ -10,11 +10,13 @@
 */
 
 // Define DSL2
-nextflow.preview.dsl=2
+nextflow.enable.dsl=2
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Params
 -------------------------------------------------------------------------------------------------------------------------------*/
+
+params.verbose = true
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Module inclusions
@@ -70,7 +72,7 @@ summary['Metadata path'] = params.input
 log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
 log.info "-\033[2m---------------------------------------------------------------\033[0m-"*/
 
-check_params(['genome','regions','blacklist','design','motifs','peaks'])
+//check_params(['genome','regions','blacklist','design','motifs','peaks'])
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Main workflow
@@ -79,11 +81,11 @@ Main workflow
 ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
 ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
 ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
-//ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
+// //ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
 ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
 
 motifs_format = [
-    [[:], params.motifs]
+     [[:], params.motifs]
 ]
 
 Channel
@@ -91,23 +93,58 @@ Channel
     .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
     .set {ch_motifs}
 
-// Run workflow
+// test = [
+//     [[sample_id:"sample1"], "test1.bw"],
+//     [[sample_id:"sample2"], "test2.bw"]
+// ]
+
+// Channel
+//     .from(test)
+//     .set {ch_test}
+
 workflow {
+
+    // ch_test.flatten().branch {
+    //     files: it instanceof String
+    //     meta: it instanceof LinkedHashMap
+    //     }
+    //     .set{ch_test2}
+    
+    // ch_test2.files.collect() | view
+    // ch_test2.meta.collect() | view
+
     fastq_metadata(params.design)
 
-    awk(params.modules['motifsplit_awk'],ch_motifs)
+    awk(params.modules['motifsplit_awk'], ch_motifs)
 
-    ch_atacorrectinput = fastq_metadata.out.metadata
-        .map{row -> [row[0], file(row[1][0])]}
-        .combine(ch_genome)
-        .combine(ch_regions)
-        .combine(ch_blacklist)
+    // ch_atacorrectinput = fastq_metadata.out.metadata
+    //     .combine(ch_genome)
+    //     .combine(ch_regions)
+    //     .combine(ch_blacklist)
 
-    tobias_atacorrect( ch_atacorrectinput )
+    tobias_atacorrect( fastq_metadata.out.metadata, ch_genome, ch_regions, ch_blacklist )
 
-    tobias_footprint( tobias_atacorrect.out.corrected.combine(ch_regions) )
+    tobias_footprint( tobias_atacorrect.out.corrected, ch_regions )
 
-    tobias_footprint.out.footprints | view
+    tobias_footprint.out.footprints.flatten().branch {
+        meta: it instanceof LinkedHashMap
+        footprints: it instanceof String
+        }
+        .set{ch_footprint_split}
+
+    ch_footprint_split.meta
+        .map { row -> row.sample_id }
+        .set { ch_sample_ids }
+
+    tobias_bindetect( 
+        ch_sample_ids.collect(),
+        ch_footprint_split.footprints.collect(),
+        awk.out.file_no_meta,
+        ch_genome,
+        ch_peaks
+        )
+
+    // tobias_footprint.out.footprints | view
 
     // ch_bind = tobias_footprint.out.footprints.collect{ it[0] }
     //     .merge(tobias_footprint.out.footprints.collect{ it[1] }) {a,b -> tuple(a,b)}
@@ -119,8 +156,6 @@ workflow {
     //     .combine(ch_motifs)
     //     .combine(ch_genome)
     //     .combine(ch_peaks)
-
-
 
     // tobias_bindetect( ch_bindtest )
     

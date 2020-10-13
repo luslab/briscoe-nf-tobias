@@ -14,7 +14,7 @@ Module decription
 */
 
 // Specify DSL2
-nextflow.preview.dsl = 2
+nextflow.enable.dsl = 2
 
 // dedup reusable component
 process tobias_atacorrect {
@@ -23,18 +23,21 @@ process tobias_atacorrect {
 
     container 'luslab/nf-modules-tobias:latest'
     
-	input:
-		tuple val(sample_id), path(bam), path(genome), path(bed), path(blacklist)
+    input:
+        val(meta), path(bam)
+        path genome 
+        path bed
+        path blacklist
 
-	output:
-		path "*.log", emit: report
-		tuple val(sample_id), path("*_corrected.bw"), emit: corrected
-		tuple val(sample_id), path("*_expected.bw"), emit: expected
-		tuple val(sample_id), path("*_uncorrected.bw"), emit: uncorrected
+    output:
+        path "*.log", emit: report
+        tuple val(meta), path("*_corrected.bw"), emit: corrected
+        tuple val(meta), path("*_expected.bw"), emit: expected
+        tuple val(meta), path("*_uncorrected.bw"), emit: uncorrected
 
     script:
     """
-    TOBIAS ATACorrect --bam $bam --genome $genome --peaks $bed --blacklist $blacklist --outdir . --cores ${task.cpus} > ${sample_id}_atacorrect.log
+    TOBIAS ATACorrect --bam $bam --genome $genome --peaks $bed --blacklist $blacklist --outdir . --cores ${task.cpus} > ${meta.sample_id}_atacorrect.log
     """
 }
 
@@ -44,61 +47,71 @@ process tobias_footprint {
 
     container 'luslab/nf-modules-tobias:latest'
 
-	input: tuple val(sample_id), path(corrected), path(bed)
+    input: 
+        tuple val(meta), path(corrected)
+        path bed
 
-	output:
-		path "*.log", emit: report 
-		tuple val(sample_id), path("*_footprints.bw"), emit: footprints
-		val sample_id, emit: sampleIds
-		path "*_footprints.bw", emit: footprintsDetect
+    output:
+        path "*.log", emit: report 
+        tuple val(meta), path("*_footprints.bw"), emit: footprints
+        path "*_footprints.bw", emit: footprintsDetect
 
-	script:
-	"""
-	TOBIAS FootprintScores --signal $corrected --regions $bed --output ${sample_id}_footprints.bw --cores ${task.cpus} > ${sample_id}_footprint.log
-	"""	
+    script:
+    """
+    TOBIAS FootprintScores --signal $corrected --regions $bed --output ${meta.sample_id}_footprints.bw --cores ${task.cpus} > ${meta.sample_id}_footprint.log
+    """
 }
 
 process tobias_bindetect {
-	publishDir "${params.outdir}/tobias_bindetect",
+    publishDir "${params.outdir}/tobias_bindetect",
         mode: "copy", overwrite: true
 
     container 'luslab/nf-modules-tobias:latest'
 
-	input: tuple val(sample_ids), path(signals), path(motifs), path(genome), path(peaks)
+    input: 
+        val sample_ids
+        path signals
+        path motifs
+        path genome
+        path peaks
 
-	output:
-		path "*.log", emit: report
-		path "bindetect_*"
-		path "*/*_overview.txt"
-		path "*/*.png"
-		path "*/plots/**"
-		path "*/beds/*_all.bed", emit: motifBeds
-		path "*/beds/*_bound.bed", emit: boundBeds
-		path "*/beds/*_unbound.bed", emit: unboundBeds
-		path "motiflist.txt", emit: motifList
+    output:
+        path "*.log", emit: report
+        path "bindetect_*"
+        path "*/*_overview.txt"
+        path "*/*.png"
+        path "*/plots/**"
+        path "*/beds/*_all.bed", emit: motifBeds
+        path "*/beds/*_bound.bed", emit: boundBeds
+        path "*/beds/*_unbound.bed", emit: unboundBeds
+        path "motiflist.txt", emit: motifList
 
-	script:
-	"""
-	awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt 
-	TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log
-	"""	
+    script:
+        command = "TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log"
+        if (params.verbose){
+          println ("[MODULE] tobias/bindetect command: " + command)
+        }
+    """
+    awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt 
+    ${command}
+    """
 }
 process tobias_plotaggregate {
-	publishDir "${params.outdir}/tobias_bindetect",
+    publishDir "${params.outdir}/tobias_bindetect",
         mode: "copy", overwrite: true
 
     container 'luslab/nf-modules-tobias:latest'
 
-	input: tuple val(motifname), path(motifBeds), path(correctedInsertions)
+    input: tuple val(motifname), path(motifBeds), path(correctedInsertions)
 
-	output:
-		path "$motifname/*.pdf", emit: plotaggregated
+    output:
+        path "$motifname/*.pdf", emit: plotaggregated
 
-	script:
-	"""
-	mkdir $motifname
-	TOBIAS PlotAggregate --TFBS $motifBeds --signals ${correctedInsertions.join(' ')} --output $motifname/${motifname}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
-	"""	
+    script:
+    """
+    mkdir $motifname
+    TOBIAS PlotAggregate --TFBS $motifBeds --signals ${correctedInsertions.join(' ')} --output $motifname/${motifname}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
+    """
 }
 
 
