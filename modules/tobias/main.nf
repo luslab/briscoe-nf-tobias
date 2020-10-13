@@ -24,7 +24,7 @@ process tobias_atacorrect {
     container 'luslab/nf-modules-tobias:latest'
     
     input:
-        val(meta), path(bam)
+        tuple val(meta), path(bam)
         path genome 
         path bed
         path blacklist

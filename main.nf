@@ -27,6 +27,7 @@ include { build_debug_param_summary; luslab_header; check_params } from './lusla
 include { fastq_metadata } from './luslab-nf-modules/tools/metadata/main.nf'
 include { awk } from './luslab-nf-modules/tools/luslab_linux_tools/main.nf'
 
+include { subset_genome } from './luslab-nf-modules/workflows/fast_flows/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Pipeline params
@@ -79,19 +80,19 @@ Main workflow
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
-ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
-ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
-// //ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
-ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
+// ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
+// ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
+// // //ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
+// ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
 
-motifs_format = [
-     [[:], params.motifs]
-]
+// motifs_format = [
+//      [[:], params.motifs]
+// ]
 
-Channel
-    .from(motifs_format)
-    .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
-    .set {ch_motifs}
+// Channel
+//     .from(motifs_format)
+//     .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
+//     .set {ch_motifs}
 
 // test = [
 //     [[sample_id:"sample1"], "test1.bw"],
@@ -104,6 +105,8 @@ Channel
 
 workflow {
 
+    subset_genome( ch_genome, "chr19:45734798-45744884" )
+
     // ch_test.flatten().branch {
     //     files: it instanceof String
     //     meta: it instanceof LinkedHashMap
@@ -113,36 +116,36 @@ workflow {
     // ch_test2.files.collect() | view
     // ch_test2.meta.collect() | view
 
-    fastq_metadata(params.design)
+    // fastq_metadata(params.design)
 
-    awk(params.modules['motifsplit_awk'], ch_motifs)
+    // awk(params.modules['motifsplit_awk'], ch_motifs)
 
-    // ch_atacorrectinput = fastq_metadata.out.metadata
-    //     .combine(ch_genome)
-    //     .combine(ch_regions)
-    //     .combine(ch_blacklist)
+    // // ch_atacorrectinput = fastq_metadata.out.metadata
+    // //     .combine(ch_genome)
+    // //     .combine(ch_regions)
+    // //     .combine(ch_blacklist)
 
-    tobias_atacorrect( fastq_metadata.out.metadata, ch_genome, ch_regions, ch_blacklist )
+    // tobias_atacorrect( fastq_metadata.out.metadata, ch_genome, ch_regions, ch_blacklist )
 
-    tobias_footprint( tobias_atacorrect.out.corrected, ch_regions )
+    // tobias_footprint( tobias_atacorrect.out.corrected, ch_regions )
 
-    tobias_footprint.out.footprints.flatten().branch {
-        meta: it instanceof LinkedHashMap
-        footprints: it instanceof String
-        }
-        .set{ch_footprint_split}
+    // tobias_footprint.out.footprints.flatten().branch {
+    //     meta: it instanceof LinkedHashMap
+    //     footprints: it instanceof String
+    //     }
+    //     .set{ch_footprint_split}
 
-    ch_footprint_split.meta
-        .map { row -> row.sample_id }
-        .set { ch_sample_ids }
+    // ch_footprint_split.meta
+    //     .map { row -> row.sample_id }
+    //     .set { ch_sample_ids }
 
-    tobias_bindetect( 
-        ch_sample_ids.collect(),
-        ch_footprint_split.footprints.collect(),
-        awk.out.file_no_meta,
-        ch_genome,
-        ch_peaks
-        )
+    // tobias_bindetect( 
+    //     ch_sample_ids.collect(),
+    //     ch_footprint_split.footprints.collect(),
+    //     awk.out.file_no_meta,
+    //     ch_genome,
+    //     ch_peaks
+    //     )
 
     // tobias_footprint.out.footprints | view
 
