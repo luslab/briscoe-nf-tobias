@@ -1,4 +1,5 @@
 #!/usr/bin/env nextflow
+import sun.nio.fs.UnixPath
 
 /*
 ========================================================================================
@@ -78,11 +79,11 @@ log.info "-\033[2m--------------------------------------------------------------
 Main workflow
 -------------------------------------------------------------------------------------------------------------------------------*/
 
-ch_genome = Channel.fromPath(params.genome, checkIfExists: true)
-ch_regions = Channel.fromPath(params.regions, checkIfExists: true)
-ch_blacklist = Channel.fromPath(params.blacklist, checkIfExists: true)
+ch_genome = Channel.value(file(params.genome, checkIfExists: true))
+ch_regions = Channel.value(file(params.regions, checkIfExists: true))
+ch_blacklist = Channel.value(file(params.blacklist, checkIfExists: true))
 // //ch_motifs = Channel.fromPath(params.motifs, checkIfExists: false)
-ch_peaks = Channel.fromPath(params.peaks, checkIfExists: false)
+ch_peaks = Channel.value(file(params.peaks, checkIfExists: false))
 
 motifs_format = [
      [[:], params.motifs]
@@ -115,22 +116,28 @@ workflow {
 
     fastq_metadata(params.design)
 
+    // fastq_metadata.out.metadata | view
+
     awk(params.modules['motifsplit_awk'], ch_motifs)
 
-    // ch_atacorrectinput = fastq_metadata.out.metadata
-    //     .combine(ch_genome)
-    //     .combine(ch_regions)
-    //     .combine(ch_blacklist)
+    // awk.out.file_no_meta | view
 
     tobias_atacorrect( fastq_metadata.out.metadata, ch_genome, ch_regions, ch_blacklist )
 
+    // tobias_atacorrect.out.corrected | view
+
     tobias_footprint( tobias_atacorrect.out.corrected, ch_regions )
+
+    // tobias_footprint.out.footprints | view
 
     tobias_footprint.out.footprints.flatten().branch {
         meta: it instanceof LinkedHashMap
-        footprints: it instanceof String
+        footprints: it instanceof UnixPath
         }
         .set{ch_footprint_split}
+    
+    // ch_footprint_split.meta | view
+    ch_footprint_split.footprints | view
 
     ch_footprint_split.meta
         .map { row -> row.sample_id }
