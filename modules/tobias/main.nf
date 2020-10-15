@@ -16,77 +16,108 @@ Module decription
 // Specify DSL2
 nextflow.enable.dsl = 2
 
-// dedup reusable component
 process tobias_atacorrect {
-    publishDir "${params.outdir}/tobias_atacorrect",
-        mode: "copy", overwrite: true
+    tag "${meta.sample_id}"
+
+    publishDir "${params.outdir}/${opts.publish_dir}",
+        mode: "copy", 
+        overwrite: true,
+        saveAs: { filename ->
+                      if (opts.publish_results == "none") null
+                      else filename }
 
     container 'luslab/nf-modules-tobias:latest'
     
     input:
-        tuple val(meta), path(bam)
-        path genome 
+        val opts
+        tuple val(meta), path(bam), path(bai)
+        tuple path(genome), path(genome_index)
         path bed
         path blacklist
 
     output:
         path "*.log", emit: report
         tuple val(meta), path("*_corrected.bw"), emit: corrected
+        path "*_corrected.bw", emit: corrected_no_meta
         tuple val(meta), path("*_expected.bw"), emit: expected
         tuple val(meta), path("*_uncorrected.bw"), emit: uncorrected
 
     script:
+        command = "TOBIAS ATACorrect --bam $bam --genome $genome --peaks $bed --blacklist $blacklist --outdir . --cores ${task.cpus} > ${meta.sample_id}_atacorrect.log"
+        if (params.verbose){
+          println ("[MODULE] tobias/atacorrect command: " + command)
+        }
     """
-    TOBIAS ATACorrect --bam $bam --genome $genome --peaks $bed --blacklist $blacklist --outdir . --cores ${task.cpus} > ${meta.sample_id}_atacorrect.log
+    ${command}
     """
 }
 
 process tobias_footprint {
-    publishDir "${params.outdir}/tobias_footprint",
-        mode: "copy", overwrite: true
+    tag "${meta.sample_id}" 
+
+    publishDir "${params.outdir}/${opts.publish_dir}",
+        mode: "copy", 
+        overwrite: true,
+        saveAs: { filename ->
+                      if (opts.publish_results == "none") null
+                      else filename }
 
     container 'luslab/nf-modules-tobias:latest'
 
-    input: 
+    input:
+        val opts
         tuple val(meta), path(corrected)
         path bed
 
     output:
+        val opts
         path "*.log", emit: report 
         tuple val(meta), path("*_footprints.bw"), emit: footprints
         path "*_footprints.bw", emit: footprintsDetect
 
     script:
+        command = "TOBIAS FootprintScores --signal $corrected --regions $bed --output ${meta.sample_id}_footprints.bw --cores ${task.cpus} > ${meta.sample_id}_footprint.log"
+        if (params.verbose){
+          println ("[MODULE] tobias/footprint command: " + command)
+        }
     """
-    TOBIAS FootprintScores --signal $corrected --regions $bed --output ${meta.sample_id}_footprints.bw --cores ${task.cpus} > ${meta.sample_id}_footprint.log
+    ${command}
     """
 }
 
 process tobias_bindetect {
-    publishDir "${params.outdir}/tobias_bindetect",
-        mode: "copy", overwrite: true
+    tag "${run_hash}"
+
+    publishDir "${params.outdir}/${opts.publish_dir}/${run_hash}",
+        mode: "copy", 
+        overwrite: true,
+        saveAs: { filename ->
+                      if (opts.publish_results == "none") null
+                      else filename }
 
     container 'luslab/nf-modules-tobias:latest'
 
-    input: 
+    input:
+        val opts
         val sample_ids
         path signals
         path motifs
-        path genome
+        tuple path(genome), path(genome_index)
         path peaks
 
     output:
         path "*.log", emit: report
-        path "bindetect_*"
-        path "*/*_overview.txt"
-        path "*/*.png"
-        path "*/plots/**"
-        path "*/beds/*_all.bed", emit: motifBeds
-        path "*/beds/*_bound.bed", emit: boundBeds
-        path "*/beds/*_unbound.bed", emit: unboundBeds
-        path "motiflist.txt", emit: motifList
+        path "bindetect_*", emit: bindetect_files
+        path "*/*_overview.txt", emit: overview
+        path "*/*.png", emit: images
+        path "*/plots/**", emit: plots
+        path "*/beds/*_all.bed", emit: motif_beds
+        path "*/beds/*_bound.bed", emit: bound_beds
+        path "*/beds/*_unbound.bed", emit: unbound_beds
+        path "motiflist.txt", emit: motif_list
 
     script:
+        run_hash = "${motifs}".md5()
         command = "TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log"
         if (params.verbose){
           println ("[MODULE] tobias/bindetect command: " + command)
@@ -97,41 +128,29 @@ process tobias_bindetect {
     """
 }
 process tobias_plotaggregate {
-    publishDir "${params.outdir}/tobias_bindetect",
-        mode: "copy", overwrite: true
+    tag "${motif_name}" 
+
+    publishDir "${params.outdir}/${opts.publish_dir}",
+        mode: "copy", 
+        overwrite: true,
+        saveAs: { filename ->
+                      if (opts.publish_results == "none") null
+                      else filename }
 
     container 'luslab/nf-modules-tobias:latest'
 
-    input: tuple val(motifname), path(motifBeds), path(correctedInsertions)
+    input:
+        val opts
+        val motif_name
+        path motif_beds
+        path corrected_insertions
 
     output:
-        path "$motifname/*.pdf", emit: plotaggregated
+        path "$motif_name/*.pdf", emit: pdf
 
     script:
     """
-    mkdir $motifname
-    TOBIAS PlotAggregate --TFBS $motifBeds --signals ${correctedInsertions.join(' ')} --output $motifname/${motifname}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
+    mkdir $motif_name
+    TOBIAS PlotAggregate --TFBS $motif_beds --signals ${corrected_insertions.join(' ')} --output $motif_name/${motif_name}_plotaggregate.pdf --share_y both --plot_boundaries --signal-on-x
     """
 }
-
-
-	/*if (verbose){
-			println ("[MODULE] BOWTIE2 ARGS: " + bowtie2_args)
-		}
-
-		cores = 4
-
-		readString = ""
-
-		// Options we add are
-		bowtie2_options = bowtie2_args
-		bowtie2_options +=  " --no-unal "  // We don't need unaligned reads in the BAM file
-		
-		// single-end / paired-end distinction. Might also be handled via params.single_end 
-		if (reads instanceof List) {
-			readString = "-1 " + reads[0] + " -2 " + reads[1]
-		}
-		else {
-			readString = "-U " + reads
-		}*/
-		
