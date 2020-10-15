@@ -21,11 +21,16 @@ include { build_debug_param_summary; luslab_header; check_params } from './lusla
 include { bam_metadata } from './luslab-nf-modules/tools/metadata/main.nf'
 include { sort_index_bam } from './luslab-nf-modules/workflows/bam_flows/main.nf'
 include { samtools_faidx } from './luslab-nf-modules/tools/samtools/main.nf'
-include { awk } from './luslab-nf-modules/tools/luslab_linux_tools/main.nf'
+include { awk; decompress } from './luslab-nf-modules/tools/luslab_linux_tools/main.nf'
 
 /*-----------------------------------------------------------------------------------------------------------------------------
 Initialisation
 -------------------------------------------------------------------------------------------------------------------------------*/
+
+// Check file extension
+def hasExtension(it, extension) {
+    it.toString().toLowerCase().endsWith(extension.toLowerCase())
+}
 
 // Show banner
 log.info luslab_header()
@@ -88,6 +93,20 @@ Main workflow
 -------------------------------------------------------------------------------------------------------------------------------*/
 
 workflow {
+    //Do we need to decompress the genome file?
+    if (hasExtension(params.genome, 'gz')) {
+        genome_format = [[[:], params.genome]]
+        Channel.from(genome_format)
+            .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
+            .set {ch_genome_meta}
+        
+        decompress(ch_genome_meta)
+
+        ch_genome = decompress.out.file_no_meta
+        //ch_genome | view
+    }
+
+    // Load in sample data
     bam_metadata(params.design)
     //bam_metadata.out.metadata | view
 
@@ -106,15 +125,19 @@ workflow {
         //ch_genome | view
     }
 
+    // Split out motif files
     awk(params.modules['motifsplit_awk'], ch_motifs)
     //awk.out.file_no_meta | view
 
+    // ATACorrect
     tobias_atacorrect( params.modules['tobias_atacorrect'], ch_bam_bai, ch_genome, ch_regions, ch_blacklist )
     //tobias_atacorrect.out.corrected | view
 
+    // Footprint
     tobias_footprint( params.modules['tobias_footprint'], tobias_atacorrect.out.corrected, ch_regions )
     //tobias_footprint.out.footprints | view
 
+    // Re-work the channels to split out the meta and footprint files
     tobias_footprint.out.footprints.flatten().branch {
             meta: it.getClass().toString() == "class java.util.LinkedHashMap"
             footprints: it.getClass().toString() == "class sun.nio.fs.UnixPath"
@@ -123,6 +146,7 @@ workflow {
     //ch_footprint_split.meta | view
     //ch_footprint_split.footprints | view
 
+    // Filter for just sample_id
     ch_footprint_split.meta
         .map { row -> row.sample_id }
         .set { ch_sample_ids }
@@ -132,6 +156,7 @@ workflow {
     ch_motif_bundles = awk.out.file_no_meta.flatten().collate(params.motif_bundle_count, false)
     //ch_motif_bundles | view
 
+    // BINDetect
     tobias_bindetect(
         params.modules['tobias_bindetect'],
         ch_sample_ids.collect(),
@@ -150,15 +175,18 @@ workflow {
     // tobias_bindetect.out.unbound_beds | view
     // tobias_bindetect.out.motif_list | view
 
+    // Grab motif names into one name per channel item
     ch_sorted_motif_names = tobias_bindetect.out.motif_list
         .splitCsv(header:false)
         .flatten()
     //ch_sorted_motif_names.collect() | view
 
+    // Same for beds
     ch_sorted_beds = tobias_bindetect.out.motif_beds
         .flatten()
     //ch_sorted_beds.collect() | view
 
+    // Run one plot per motif
     tobias_plotaggregate(
         params.modules['tobias_plotaggregate'],
         ch_sorted_motif_names,
