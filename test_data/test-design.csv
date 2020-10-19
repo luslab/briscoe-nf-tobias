@@ -1,3 +1,4 @@
 sample_id,data1,data2
-test_sample_1,https://raw.githubusercontent.com/luslab/briscoe-nf-tobias/test_data/test1.bam
-test_sample_2,https://raw.githubusercontent.com/luslab/briscoe-nf-tobias/test_data/test1.bam
+test_sample_1,https://github.com/luslab/briscoe-nf-tobias/raw/master/test_data/test1.bam
+test_sample_2,https://github.com/luslab/briscoe-nf-tobias/raw/master/test_data/test1.bam
+
