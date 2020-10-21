@@ -121,7 +121,7 @@ workflow {
     // Check if we need to index the genome
     if(!params.skip_genome_index) {
         samtools_faidx( params.modules['cust_samtools_faidx'], ch_genome )
-        ch_genome = samtools_faidx.out.indexedFasta
+        ch_genome = samtools_faidx.out.fasta
         //ch_genome | view
     }
 
