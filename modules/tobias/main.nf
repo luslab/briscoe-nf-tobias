@@ -122,9 +122,12 @@ process tobias_bindetect {
         if (params.verbose){
           println ("[MODULE] tobias/bindetect command: " + command)
         }
+
+        dev_command = "fil-profile run /home/TOBIAS/tobias/tools/bindetect.py --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cores ${task.cpus} > bindectect.log"
     """
-    awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt 
-    ${command}
+    awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt
+    source activate nfcore-module-tobias
+    ${dev_command}
     """
 }
 process tobias_plotaggregate {

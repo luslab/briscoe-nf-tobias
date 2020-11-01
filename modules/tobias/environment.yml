@@ -28,3 +28,4 @@ dependencies:
   - pip
   - pip:
     - gimmemotifs==0.15.0
+    - cython

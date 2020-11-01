@@ -24,4 +24,13 @@ COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 ENV PATH /opt/conda/envs/nfcore-module-tobias/bin:$PATH
 
-RUN pip install tobias==0.12.1
+# Install release version
+#RUN pip install tobias==0.12.3
+
+# Install dev fork
+WORKDIR /home
+RUN git clone https://github.com/chris-cheshire/TOBIAS.git
+WORKDIR /home/TOBIAS
+RUN /opt/conda/envs/nfcore-module-tobias/bin/pip install .
+WORKDIR /home
+RUN conda install -n nfcore-module-tobias -c conda-forge filprofiler
