@@ -18,6 +18,8 @@ nextflow.enable.dsl = 2
 
 process tobias_atacorrect {
     tag "${meta.sample_id}"
+    label 'h_cpu'
+    time = 4.h
 
     publishDir "${params.outdir}/${opts.publish_dir}",
         mode: "copy", 
@@ -53,7 +55,9 @@ process tobias_atacorrect {
 }
 
 process tobias_footprint {
-    tag "${meta.sample_id}" 
+    tag "${meta.sample_id}"
+    label 'h_cpu'
+    time = 4.h
 
     publishDir "${params.outdir}/${opts.publish_dir}",
         mode: "copy", 
@@ -87,6 +91,8 @@ process tobias_footprint {
 
 process tobias_bindetect {
     tag "${run_hash}"
+    label 'mx_cpu'
+    time = 24.h
 
     publishDir "${params.outdir}/${opts.publish_dir}/${run_hash}",
         mode: "copy", 
@@ -131,7 +137,9 @@ process tobias_bindetect {
     """
 }
 process tobias_plotaggregate {
-    tag "${motif_name}" 
+    tag "${motif_name}"
+    label 'mn_cpu'
+    time = 4.h
 
     publishDir "${params.outdir}/${opts.publish_dir}",
         mode: "copy", 
