@@ -111,7 +111,7 @@ workflow {
 
     // Load in sample data
     bam_metadata(params.design)
-    //bam_metadata.out.metadata | view
+    bam_metadata.out.metadata | view
 
     // Check if we need to index the bam
     ch_bam_bai = bam_metadata.out.metadata
