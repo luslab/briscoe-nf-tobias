@@ -59,7 +59,7 @@ summary['Peaks file'] = params.peaks
 summary['Motifs file'] = params.motifs
 summary['Skip bam indexing'] = params.skip_bam_index
 summary['Skip genome indexing'] = params.skip_genome_index
-summary['Motif bundle size'] = params.motif_bundle_count
+//summary['Motif bundle size'] = params.motif_bundle_count
 log.info summary.collect { k,v -> "${k.padRight(18)}: $v" }.join("\n")
 log.info "-\033[2m---------------------------------------------------------------\033[0m-"
 
@@ -67,18 +67,26 @@ log.info "-\033[2m--------------------------------------------------------------
 check_params(['genome','regions','blacklist','design','motifs','peaks'])
 if(params.skip_genome_index) check_params(['genome_index'])
 
+motif_list_command = params.motif_list_command_jaspar
+if (hasExtension(params.motifs, 'meme')) {
+    motif_list_command = params.motif_list_command_meme
+}
+
 /*-----------------------------------------------------------------------------------------------------------------------------
 Channel Initialisation
 -------------------------------------------------------------------------------------------------------------------------------*/
 
-motifs_format = [[[:], params.motifs]]
-
 ch_regions = Channel.value(file(params.regions, checkIfExists: true))
 ch_blacklist = Channel.value(file(params.blacklist, checkIfExists: true))
 ch_peaks = Channel.value(file(params.peaks, checkIfExists: false))
+ch_motif_list_command = Channel.value(motif_list_command)
 
-Channel.from(motifs_format)
-    .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
+//motifs_format = [[[:], params.motifs]]
+// Channel.from(motifs_format)
+//     .map { row -> [ row[0], [file(row[1], checkIfExists: true)]]}
+//     .set {ch_motifs}
+
+Channel.fromPath(params.motifs, checkIfExists: true)
     .set {ch_motifs}
 
 if(!params.skip_genome_index) {
@@ -129,7 +137,7 @@ workflow {
     }
 
     // Split out motif files
-    awk(params.modules['motifsplit_awk'], ch_motifs)
+    //awk(params.modules['motifsplit_awk'], ch_motifs)
     //awk.out.file_no_meta | view
 
     // ATACorrect
@@ -156,15 +164,16 @@ workflow {
     //ch_sample_ids | view
 
     // Group motifs into bundles for processing
-    ch_motif_bundles = awk.out.file_no_meta.flatten().collate(params.motif_bundle_count, false)
+    //ch_motif_bundles = awk.out.file_no_meta.flatten().collate(params.motif_bundle_count, false)
     //ch_motif_bundles | view
 
     // BINDetect
     tobias_bindetect(
         params.modules['tobias_bindetect'],
+        ch_motif_list_command,
         ch_sample_ids.collect(),
         ch_footprint_split.footprints.collect(),
-        ch_motif_bundles,
+        ch_motifs,
         ch_genome,
         ch_peaks
     )

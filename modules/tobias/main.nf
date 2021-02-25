@@ -105,6 +105,7 @@ process tobias_bindetect {
 
     input:
         val opts
+        val list_command
         val sample_ids
         path signals
         path motifs
@@ -131,7 +132,7 @@ process tobias_bindetect {
 
         dev_command = "fil-profile run /home/TOBIAS/tobias/tools/bindetect.py --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cores ${task.cpus} > bindectect.log"
     """
-    awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt
+    $list_command $motifs | sort > motiflist.txt
     source activate nfcore-module-tobias
     ${dev_command}
     """
