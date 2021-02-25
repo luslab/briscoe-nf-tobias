@@ -105,6 +105,7 @@ process tobias_bindetect {
 
     input:
         val opts
+        val list_command
         val sample_ids
         path signals
         path motifs
@@ -130,12 +131,8 @@ process tobias_bindetect {
         }
 
         dev_command = "fil-profile run /home/TOBIAS/tobias/tools/bindetect.py --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cores ${task.cpus} > bindectect.log"
-    // Only JASPAR2020 files start with >, need their columns reorganize and have :: and (var2)
-    // Awk for JASPAR
-    // awk '{if(\$1 ~ />/) {a=\$2"_"\$1; gsub(/>/,"",a); gsub("::","",a); gsub(/[()]/,"",a); print a}}' $motifs | sort > motiflist.txt
-    // for MEME files the command will be:
     """
-    awk '{if(\$1 ~ /MOTIF/) {a=\$2; gsub(/MOTIF/,"",a); gsub("+","",a); print a}}' $motifs | sort > motiflist.txt
+    $list_command $motifs | sort > motiflist.txt
     source activate nfcore-module-tobias
     ${dev_command}
     """
