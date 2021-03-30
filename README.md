@@ -21,7 +21,8 @@ nextflow run luslab/briscoe-nf-tobias \
   --peaks regions.bed \
   --blacklist blacklist.bed \
   --motifs motifs \
-  --design design.csv
+  --design design.csv \
+  --skip_bam_index true
 
   ```
 
@@ -48,3 +49,5 @@ Csv file with paths and condition grouping with the following header:
  - `data1` corresponds to the path to the .bam
  - `data2` corresponds to the path to the .bam.bai, if available
 
+### --skip_bam_index
+This should be `true` if you are providing paths to your .bam.bai 
