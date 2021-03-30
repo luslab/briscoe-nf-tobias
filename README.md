@@ -10,9 +10,23 @@ Given a design file, a motif file and mapped files (bam format) it will run TOBI
 
 ## Usage
 
-The pipeline can be run in the following example:
+The pipeline can be run as in the following example:
 
 ```
+#!/bin/sh
+export NXF_WORK="/path/to/work"
+export NXF_SINGULARITY_CACHEDIR="/path/to/sing"
+
+## LOAD REQUIRED MODULES
+ml purge
+ml Nextflow/20.07.1
+ml Singularity/3.4.2
+ml Graphviz
+
+## UPDATE PIPLINE
+nextflow pull luslab/briscoe-nf-tobias
+
+## RUN PIPLINE
 nextflow run luslab/briscoe-nf-tobias \
   -r master \
   -profile crick \
