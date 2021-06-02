@@ -57,6 +57,7 @@ summary['Regions file'] = params.regions
 summary['Blacklist file'] = params.blacklist
 summary['Peaks file'] = params.peaks
 summary['Motifs file'] = params.motifs
+summary['Output peaks file'] = params.output_peaks
 summary['Skip bam indexing'] = params.skip_bam_index
 summary['Skip genome indexing'] = params.skip_genome_index
 //summary['Motif bundle size'] = params.motif_bundle_count
@@ -70,6 +71,15 @@ if(params.skip_genome_index) check_params(['genome_index'])
 motif_list_command = params.motif_list_command_jaspar
 if (hasExtension(params.motifs, 'meme')) {
     motif_list_command = params.motif_list_command_meme
+}
+
+// Resolve params
+bin_detect = params.modules['tobias_bindetect']
+if(params.output_peaks) {
+    ch_output_peaks = file(params.output_peaks, checkIfExists: true)
+}
+else {
+    ch_output_peaks = file("$projectDir/assets/dummy_file.txt", checkIfExists: true)
 }
 
 /*-----------------------------------------------------------------------------------------------------------------------------
@@ -171,11 +181,11 @@ workflow {
     tobias_bindetect(
         params.modules['tobias_bindetect'],
         ch_motif_list_command,
-        ch_sample_ids.collect(),
         ch_footprint_split.footprints.collect(),
         ch_motifs,
         ch_genome,
-        ch_peaks
+        ch_peaks,
+        ch_output_peaks
     )
     // tobias_bindetect.out.report | view
     // tobias_bindetect.out.bindetect_files | view

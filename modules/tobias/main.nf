@@ -1,4 +1,3 @@
-#!/usr/bin/env nextflow
 /*
 ========================================================================================
                          TOBIAS wrapper module
@@ -13,9 +12,6 @@ Module decription
 ----------------------------------------------------------------------------------------
 */
 
-// Specify DSL2
-nextflow.enable.dsl = 2
-
 process tobias_atacorrect {
     tag "${meta.sample_id}"
     label 'h_cpu'
@@ -28,7 +24,7 @@ process tobias_atacorrect {
                       if (opts.publish_results == "none") null
                       else filename }
 
-    container 'luslab/nf-modules-tobias:latest'
+    container 'quay.io/biocontainers/tobias:0.12.10--py37h77a2a36_1'
     
     input:
         val opts
@@ -54,6 +50,10 @@ process tobias_atacorrect {
     """
 }
 
+/*
+----------------------------------------------------------------------------------------
+*/
+
 process tobias_footprint {
     tag "${meta.sample_id}"
     label 'h_cpu'
@@ -66,7 +66,7 @@ process tobias_footprint {
                       if (opts.publish_results == "none") null
                       else filename }
 
-    container 'luslab/nf-modules-tobias:latest'
+    container 'quay.io/biocontainers/tobias:0.12.10--py37h77a2a36_1'
 
     input:
         val opts
@@ -89,6 +89,63 @@ process tobias_footprint {
     """
 }
 
+/*
+----------------------------------------------------------------------------------------
+*/
+
+// Usage:
+// TOBIAS BINDetect --signals <bigwig1> (<bigwig2> (...)) --motifs <motifs.txt> --genome
+// <genome.fasta> --peaks <peaks.bed>
+// Output files:
+// - <outdir>/<prefix>_figures.pdf
+// - <outdir>/<prefix>_results.{txt,xlsx}
+// - <outdir>/<prefix>_distances.txt
+// - <outdir>/<TF>/<TF>_overview.{txt,xlsx} (per motif)
+// - <outdir>/<TF>/beds/<TF>_all.bed (per motif)
+// - <outdir>/<TF>/beds/<TF>_<condition>_bound.bed (per motif-condition pair)
+// - <outdir>/<TF>/beds/<TF>_<condition>_unbound.bed (per motif-condition pair)
+// ------------------------------------------------------------------------------------------
+// Required arguments:
+//   --signals [<bigwig> [<bigwig> ...]]
+//                                    Signal per condition (.bigwig format)
+//   --peaks <bed>                    Peaks.bed containing open chromatin regions across all
+//                                    conditions
+//   --motifs [<motifs> [<motifs> ...]]
+//                                    Motif file(s) in pfm/jaspar/meme format
+//   --genome <fasta>                 Genome .fasta file
+// Optional arguments:
+//   --cond-names [<name> [<name> ...]]
+//                                    Names of conditions fitting to --signals (default:
+//                                    prefix of --signals)
+//   --peak-header <file>             File containing the header of --peaks separated by
+//                                    whitespace or newlines (default: peak columns are named
+//                                    "_additional_<count>")
+//   --naming <string>                Naming convention for TF output files ('id', 'name',
+//                                    'name_id', 'id_name') (default: 'name_id')
+//   --motif-pvalue <float>           Set p-value threshold for motif scanning (default:
+//                                    1e-4)
+//   --bound-pvalue <float>           Set p-value threshold for bound/unbound split (default:
+//                                    0.001)
+//   --pseudo <float>                 Pseudocount for calculating log2fcs (default: estimated
+//                                    from data)
+//   --time-series                    Will only compare signals1<->signals2<->signals3 (...)
+//                                    in order of input, and skip all-against-all comparison.
+//   --skip-excel                     Skip creation of excel files - for large datasets, this
+//                                    will speed up BINDetect considerably
+//   --output-peaks <bed>             Gives the possibility to set the output peak set
+//                                    differently than the input --peaks. This will limit all
+//                                    analysis to the regions in --output-peaks. NOTE:
+//                                    --peaks must still be set to the full peak set!
+//   --prefix <prefix>                Prefix for overview files in --outdir folder (default:
+//                                    bindetect)
+// Run arguments:
+//   --outdir <directory>             Output directory to place TFBS/plots in (default:
+//                                    bindetect_output)
+//   --cores <int>                    Number of cores to use for computation (default: 1)
+//   --split <int>                    Split of multiprocessing jobs (default: 100)
+//   --verbosity <int>                Level of output logging (0: silent, 1: errors/warnings,
+//                                    2: info, 3: stats, 4: debug, 5: spam) (default: 3)
+
 process tobias_bindetect {
     tag "${run_hash}"
     label 'mx_cpu'
@@ -101,16 +158,16 @@ process tobias_bindetect {
                       if (opts.publish_results == "none") null
                       else filename }
 
-    container 'luslab/nf-modules-tobias:latest'
+    container 'quay.io/biocontainers/tobias:0.12.10--py37h77a2a36_1'
 
     input:
         val opts
         val list_command
-        val sample_ids
         path signals
         path motifs
         tuple path(genome), path(genome_index)
         path peaks
+        path output_peaks
 
     output:
         path "*.log", emit: report
@@ -124,19 +181,27 @@ process tobias_bindetect {
         path "motiflist.txt", emit: motif_list
 
     script:
-        run_hash = "${motifs}".md5()
-        command = "TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cond_names ${sample_ids.join(' ')} --cores ${task.cpus} > bindectect.log"
-        if (params.verbose){
-          println ("[MODULE] tobias/bindetect command: " + command)
-        }
-
-        dev_command = "fil-profile run /home/TOBIAS/tobias/tools/bindetect.py --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cores ${task.cpus} > bindectect.log"
+    run_hash = "${motifs}".md5()
+    def command = ""
+    if(params.output_peaks) {
+        command = "TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --output_peaks $output_peaks --outdir . --cores ${task.cpus} > bindetect.log"
+    } else {
+        command = "TOBIAS BINDetect --motifs $motifs --signal $signals --peaks $peaks --genome $genome --outdir . --cores ${task.cpus} > bindetect.log" // --cond_names ${sample_ids.join(' ')}
+    }
+    
+    if (params.verbose){
+        println ("[MODULE] tobias/bindetect command: " + command)
+    }
     """
     $list_command $motifs | sort > motiflist.txt
-    source activate nfcore-module-tobias
-    ${dev_command}
+    ${command}
     """
 }
+
+/*
+----------------------------------------------------------------------------------------
+*/
+
 process tobias_plotaggregate {
     tag "${motif_name}"
     label 'mn_cpu'
@@ -149,7 +214,7 @@ process tobias_plotaggregate {
                       if (opts.publish_results == "none") null
                       else filename }
 
-    container 'luslab/nf-modules-tobias:latest'
+    container 'quay.io/biocontainers/tobias:0.12.10--py37h77a2a36_1'
 
     input:
         val opts
