@@ -10,16 +10,20 @@ Given a design file, a motif file and mapped files (bam format) it will run TOBI
 
 ## Usage
 
+The release is set to the latest version, to run the development version of the pipeline, change to `-r dev`
+
 The pipeline can be run as in the following example:
 
 ```
+
 #!/bin/sh
+
 export NXF_WORK="/path/to/work"
 export NXF_SINGULARITY_CACHEDIR="/path/to/sing"
 
 ## LOAD REQUIRED MODULES
 ml purge
-ml Nextflow/20.07.1
+ml Nextflow/21.04.0
 ml Singularity/3.4.2
 ml Graphviz
 
@@ -29,7 +33,7 @@ nextflow pull luslab/briscoe-nf-tobias
 ## RUN PIPLINE
 nextflow run luslab/briscoe-nf-tobias \
   -r master \
-  -profile crick \
+  -profile crick_tobias \
   --genome genome.fa \
   --regions regions.bed \
   --peaks regions.bed \
@@ -37,7 +41,7 @@ nextflow run luslab/briscoe-nf-tobias \
   --motifs motifs \
   --design design.csv \
   --skip_bam_index true
-
+  
   ```
 
 ### --genome
@@ -64,4 +68,13 @@ Csv file with paths and condition grouping with the following header:
  - `data2` corresponds to the path to the .bam.bai, if available
 
 ### --skip_bam_index
-This should be `true` if you are providing paths to your .bam.bai 
+This should be `true` if you are providing paths to your .bam.bai
+
+### --output_peaks <BED> (optional)
+Provide this parameter as a bed file. From the manual:
+  ```
+    --output-peaks <bed>             Gives the possibility to set the output peak set
+                                   differently than the input --peaks. This will limit all
+                                   analysis to the regions in --output-peaks. NOTE:
+                                   --peaks must still be set to the full peak set!
+  ```
